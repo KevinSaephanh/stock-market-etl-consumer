@@ -1,4 +1,4 @@
-from confluent_kafka import Consumer, KafkaException, KafkaError
+from confluent_kafka import Consumer
 from config import settings
 from logger import logger
 from stocks_service import bulk_insert_stock_data
@@ -13,6 +13,7 @@ consumer_config = {
     "sasl.mechanism": "PLAIN",
     "sasl.username": settings.KAFKA_USERNAME,
     "sasl.password": settings.KAFKA_PASSWORD,
+    "session.timeout.ms": 45000,
 }
 consumer = Consumer(consumer_config)
 consumer.subscribe([settings.KAFKA_TOPIC])
@@ -22,13 +23,13 @@ def consume_stock_data(session):
     try:
         while True:
             message = consumer.poll(1.0)
-            if message.error() and message.error().code() != KafkaError._PARTITION_EOF:
-                logger.error("Error while consuming: %s", message.error())
-            else:
+            if message is not None and message.error() is None:
                 value = message.value().decode("utf-8")
                 bulk_insert_stock_data(session, value)
                 export_to_csv("transformed data")
                 upload_to_s3("file_name")
+    except KeyboardInterrupt:
+        logger.error("Keyboard interruption")
     except Exception as e:
         logger.error("Error occurred during data ingestion and transformation: %s", e)
         raise e
