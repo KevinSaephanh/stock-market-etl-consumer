@@ -1,5 +1,5 @@
-import boto3
 import os
+import boto3
 from botocore.exceptions import NoCredentialsError, BotoCoreError
 from logger import logger
 from config import settings

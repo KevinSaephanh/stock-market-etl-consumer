@@ -15,3 +15,4 @@ def export_to_csv(data):
         for entry in time_series:
             writer.writerow([entry[field] for field in fields])
     logger.info("Exported stock data to CSV")
+    return file_name

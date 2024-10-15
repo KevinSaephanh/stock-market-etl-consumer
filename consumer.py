@@ -19,15 +19,18 @@ consumer = Consumer(consumer_config)
 consumer.subscribe([settings.KAFKA_TOPIC])
 
 
-def consume_stock_data(session):
+def consume_stock_data():
     try:
         while True:
             message = consumer.poll(1.0)
             if message is not None and message.error() is None:
+                # Insert polled records into DB
                 value = message.value().decode("utf-8")
-                bulk_insert_stock_data(session, value)
-                export_to_csv("transformed data")
-                upload_to_s3("file_name")
+                inserted_data = bulk_insert_stock_data(value)
+                # Export inserted data to CSV
+                file_name = export_to_csv(inserted_data)
+                # Upload CSV to S3
+                upload_to_s3(file_name)
     except KeyboardInterrupt:
         logger.error("Keyboard interruption")
     except Exception as e:

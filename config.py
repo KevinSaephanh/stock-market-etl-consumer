@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     KAFKA_BOOTSTRAP_SERVERS: str
     KAFKA_USERNAME: str
     KAFKA_PASSWORD: str
+    DB_URL: str
+    DB_TOKEN: str
     AWS_S3_REGION: str
     AWS_S3_BUCKET: str
     AWS_S3_ACCESS_KEY: str

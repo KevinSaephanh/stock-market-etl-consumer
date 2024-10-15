@@ -1,34 +1,31 @@
 import signal
 import sys
-from cassandra.cluster import Cluster
 from logger import logger
+from db import create_stocks_table
 from consumer import consumer, consume_stock_data
-
-
-def cassandra_connection():
-    try:
-        logger.info("Connecting to DB")
-        cluster = Cluster(["127.0.0.1"], port=9042)
-        session = cluster.connect()
-        logger.info("Connected to DB")
-        return session
-    except Exception as e:
-        logger.error("Failed to connect to DB. Cause: %s", e)
-        raise e
 
 
 def signal_handler(sig, _):
     logger.info("Signal %s received, shutting down...", sig)
-    consumer.close()
-    sys.exit(0)
+    try:
+        consumer.close()
+        logger.info("Consumer closed successfully")
+    except Exception as e:
+        logger.error("Failed to close consumer: %s", e)
+    finally:
+        sys.exit(0)
 
 
-if __name__ == "__main__":
+def main():
     logger.info("Starting app")
-    session = cassandra_connection()
 
     # Set up signal handling for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    consume_stock_data(session)
+    create_stocks_table()
+    consume_stock_data()
+
+
+if __name__ == "__main__":
+    main()
