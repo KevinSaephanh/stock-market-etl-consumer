@@ -51,21 +51,16 @@ def consume_stock_data():
 
 
 def parse_stock_time_series(stock_data) -> Optional[TimeSeriesData]:
-    if "Time Series (Daily)" in stock_data:
-        return TimeSeriesData(
-            time_series=stock_data["Time Series (Daily)"],
-            timeframe="daily"
-        )
-    elif "Weekly Adjusted Time Series" in stock_data:
-        return TimeSeriesData(
-            time_series=stock_data["Weekly Adjusted Time Series"],
-            timeframe="weekly"
-        )
-    elif "Monthly Adjusted Time Series" in stock_data:
-        return TimeSeriesData(
-            time_series=stock_data["Monthly Adjusted Time Series"],
-            timeframe="monthly"
-        )
-    else:
-        logger.error("Invalid data format: missing expected time series keys")
-        return None
+    time_series_mapping = {
+        "Time Series (Daily)": "daily",
+        "Weekly Adjusted Time Series": "weekly",
+        "Monthly Adjusted Time Series": "monthly"
+    }
+    for key, value in time_series_mapping.items():
+        if key in stock_data:
+            return TimeSeriesData(
+                time_series=stock_data[key],
+                timeframe=value
+            )
+    logger.error("Invalid data format: missing expected time series keys")
+    return None
