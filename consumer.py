@@ -1,9 +1,12 @@
+import json
+from typing import Optional
 from confluent_kafka import Consumer
 from config import settings
 from logger import logger
 from stocks_service import bulk_insert_stock_data
 from csv_service import export_to_csv
 from s3_service import upload_to_s3
+from time_series_data import TimeSeriesData
 
 consumer_config = {
     "bootstrap.servers": settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -22,19 +25,47 @@ consumer.subscribe([settings.KAFKA_TOPIC])
 def consume_stock_data():
     try:
         while True:
-            message = consumer.poll(1.0)
-            if message is not None and message.error() is None:
+            msg = consumer.poll(1.0)
+            if msg is not None and msg.error() is None:
+                stock_data = json.loads(msg.value().decode('utf-8'))
+                symbol = msg.key().decode('utf-8') 
+                time_series_data = parse_stock_time_series(stock_data)
+                                
                 # Insert polled records into DB
-                value = message.value().decode("utf-8")
-                inserted_data = bulk_insert_stock_data(value)
+                bulk_insert_stock_data(symbol, time_series_data)
+                
                 # Export inserted data to CSV
-                file_name = export_to_csv(inserted_data)
+                file_name = export_to_csv(symbol, time_series_data)
+                
                 # Upload CSV to S3
                 upload_to_s3(file_name)
-    except KeyboardInterrupt:
-        logger.error("Keyboard interruption")
+    except json.JSONDecodeError as e:
+        logger.error("Failed to decode JSON: %s", {e})
+    except KeyboardInterrupt as e:
+        logger.error("Keyboard interruption: %s", {e})
     except Exception as e:
         logger.error("Error occurred during data ingestion and transformation: %s", e)
         raise e
     finally:
         consumer.close()
+
+
+def parse_stock_time_series(stock_data) -> Optional[TimeSeriesData]:
+    if "Time Series (Daily)" in stock_data:
+        return TimeSeriesData(
+            time_series=stock_data["Time Series (Daily)"],
+            timeframe="daily"
+        )
+    elif "Weekly Adjusted Time Series" in stock_data:
+        return TimeSeriesData(
+            time_series=stock_data["Weekly Adjusted Time Series"],
+            timeframe="weekly"
+        )
+    elif "Monthly Adjusted Time Series" in stock_data:
+        return TimeSeriesData(
+            time_series=stock_data["Monthly Adjusted Time Series"],
+            timeframe="monthly"
+        )
+    else:
+        logger.error("Invalid data format: missing expected time series keys")
+        return None
