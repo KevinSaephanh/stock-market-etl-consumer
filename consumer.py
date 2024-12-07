@@ -3,7 +3,6 @@ from typing import Optional
 from confluent_kafka import Consumer
 from config import settings
 from logger import logger
-from stocks_service import bulk_insert_stock_data
 from csv_service import export_to_csv
 from s3_service import upload_to_s3
 from time_series_data import TimeSeriesData
@@ -31,9 +30,6 @@ def consume_stock_data():
                 symbol = msg.key().decode('utf-8') 
                 time_series_data = parse_stock_time_series(stock_data)
                                 
-                # Insert polled records into DB
-                bulk_insert_stock_data(symbol, time_series_data)
-                
                 # Export inserted data to CSV
                 file_name = export_to_csv(symbol, time_series_data)
                 
